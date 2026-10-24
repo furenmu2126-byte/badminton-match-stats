@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f4f7f2"><meta name="description" content="羽毛球逐分记录、技术统计和训练复盘"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="羽球记分"><title>羽毛球比赛统计</title>
+  <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar"><a class="brand" href="#" aria-label="羽毛球统计首页"><span class="brand-icon">羽</span><span>羽球记分</span></a><span class="local-badge">仅保存在本机</span></header>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <section id="home" class="screen" hidden>
+      <div class="hero"><div class="eyebrow">MATCH TRACKER · V0.1</div><h1>把每一分，<br>都记清楚。</h1><p>现场逐分记录，赛后查看技术、原因和场地区域统计。记录只保存在这台设备的浏览器中。</p><div class="court-art" aria-hidden="true"><div class="court-net"></div><div class="court-shuttle">⌁</div></div></div>
+      <form id="start-form" class="panel setup"><div class="section-heading"><div><span class="step-label">NEW SESSION</span><h2>记录训练场次</h2></div><span class="step-number">01</span></div>
+        <label for="session-date">日期</label><input id="session-date" name="sessionDate" type="date" required>
+        <label for="session-title">场次名称（可选）</label><input id="session-title" name="sessionTitle" maxlength="36" placeholder="例如：周三晚练习" autocomplete="off">
+        <fieldset class="mode-fieldset"><legend>计分模式</legend><div class="mode-toggle"><button class="mode-button selected" type="button" data-mode="official" aria-pressed="true">正规比赛</button><button class="mode-button" type="button" data-mode="free" aria-pressed="false">自由比赛</button></div>
+          <p id="mode-description" class="mode-description">三局两胜，21 分制。20 平后需领先 2 分，30 分封顶。</p>
+          <div id="official-scores" class="score-options" aria-label="正规比赛每局分数"><button class="score-option selected" type="button" data-target="21" aria-pressed="true"><b>21 分制</b><span>现行规则 · 30 分封顶</span></button><button class="score-option" type="button" data-target="15" aria-pressed="false"><b>15 分制</b><span>2027 年起 · 21 分封顶</span></button></div>
+          <div id="free-scores" class="free-options" hidden aria-label="自由比赛每局分数">一局定胜负 · <span class="free-score-buttons"></span><p id="free-description" class="free-description">先到 5 分获胜，不加分。</p></div>
+        </fieldset>
+        <label for="player-name">我方名称</label><input id="player-name" name="playerName" maxlength="24" placeholder="我方" autocomplete="off">
+        <label for="opponent-name">第一场对手</label><input id="opponent-name" name="opponentName" maxlength="24" placeholder="对手" autocomplete="off">
+        <button class="button primary full" type="submit">开始记录第一场 <span aria-hidden="true">→</span></button>
+      </form>
+      <section class="history-section"><div class="section-heading"><div><span class="step-label">LOCAL ARCHIVE</span><h2>训练记录</h2></div><span id="history-count" class="history-count"></span></div><div id="session-list" class="session-list"></div></section>
+    </section>
+    <section id="record" class="screen" hidden>
+      <div class="match-head"><div><span id="match-caption" class="eyebrow">LIVE MATCH</span><div class="match-meta"><span id="match-format">正规比赛 · 21 分</span><span class="dot"></span><span id="game-label">第 1 局</span><span class="dot"></span><span>局分 <b id="games-score">0 : 0</b></span></div></div><button id="home-button" class="text-button" type="button">新建比赛</button></div>
+      <div class="scoreboard panel"><div class="side-score"><span id="player-label" class="player-label">我方</span><strong id="score-us">0</strong><span class="set-wins">已赢 <b id="sets-us">0</b> 局</span></div><div class="score-divider"><span>VS</span><i></i></div><div class="side-score opponent"><span id="opponent-label" class="player-label">对手</span><strong id="score-opponent">0</strong><span class="set-wins">已赢 <b id="sets-opponent">0</b> 局</span></div></div>
+      <div id="entry-panel" class="panel entry-panel"><div class="section-heading"><div><span class="step-label">RALLY ENTRY</span><h2 id="entry-title">这一分，谁得分？</h2></div><span id="entry-step" class="step-number">01 / 03</span></div>
+        <div id="result-choices" class="result-choices"><button class="result-button win-button" data-result="win" type="button"><span class="result-symbol">＋</span><span>我方得分</span><span class="result-hint">我方赢下这一分</span></button><button class="result-button lose-button" data-result="lose" type="button"><span class="result-symbol">－</span><span>我方失分</span><span class="result-hint">对方赢下这一分</span></button></div>
+        <div id="choice-panel" hidden><p id="choice-label" class="choice-prompt"></p><div id="choices" class="choice-grid"></div><button id="back-step" class="button quiet back-button" type="button">← 返回上一步</button></div>
+      </div>
+      <div id="area-panel" class="panel area-panel" hidden><div class="area-heading"><div><span class="step-label">OPTIONAL · LAST RALLY</span><h2>补记上一分资料</h2><p>可选：记录我方位置，或对手本分的关键技术。</p></div><button id="skip-area" class="button quiet" type="button">跳过</button></div><div class="court-grid" aria-label="选择我方所在区域"></div><p class="court-help">左右按我方面向球网的方向</p><details class="opponent-tech-details"><summary>记录对手本分的关键技术（可选）</summary><div id="opponent-tech-choices" class="choice-grid"></div></details></div>
+      <div class="record-footer"><button id="undo-button" class="button secondary" type="button">↶ 撤销上一分</button><span id="rally-count" class="rally-count">已记录 0 分</span></div>
+    </section>
+    <section id="report" class="screen" hidden>
+      <div class="report-heading"><div><span class="eyebrow">MATCH REPORT</span><h1>本场比赛报告</h1><p id="report-subtitle" class="report-subtitle"></p></div><div id="result-stamp" class="result-stamp"></div></div>
+      <div id="final-area" class="panel final-area" hidden></div>
+      <div class="report-summary"><span class="summary-mark">✳</span><div><span class="step-label">比赛小结</span><p id="summary-text"></p></div></div>
+      <div class="report-grid"><article class="panel report-card"><div class="section-heading"><div><span class="step-label">SCORE</span><h2>局分明细</h2></div></div><div id="game-table"></div><div class="totals"><div><span>我方得分</span><b id="total-wins">0</b></div><div><span>我方失分</span><b id="total-losses">0</b></div></div></article>
+        <article class="panel report-card"><div class="section-heading"><div><span class="step-label">WINNING SHOTS</span><h2>得分技术</h2></div></div><p class="metric-caption">该技术得分次数 ÷ 总得分</p><div id="win-tech" class="metric-list"></div></article>
+        <article class="panel report-card"><div class="section-heading"><div><span class="step-label">ERROR ANALYSIS</span><h2>失分技术</h2></div></div><p class="metric-caption">该技术失分次数 ÷ 总失分</p><div id="lose-tech" class="metric-list"></div></article>
+        <article class="panel report-card"><div class="section-heading"><div><span class="step-label">OPPONENT STYLE · OBSERVED</span><h2>已记录的对手技术</h2></div></div><p class="metric-caption">仅统计记录员明确补记的对手动作</p><div id="opponent-tech" class="metric-list"></div></article>
+        <article class="panel report-card"><div class="section-heading"><div><span class="step-label">POINT REASONS</span><h2>失分原因</h2></div></div><p class="metric-caption">每项次数及占总失分比例</p><div id="lose-reason" class="metric-list"></div></article>
+        <article class="panel report-card area-report"><div class="section-heading"><div><span class="step-label">COURT POSITION</span><h2>区域统计</h2></div></div><div id="area-report-content"></div></article>
+      </div>
+      <div class="report-actions"><button id="report-undo" class="button secondary" type="button">↶ 撤销上一分</button><button id="continue-match" class="button secondary" type="button" hidden>返回比赛</button><button id="report-session" class="button secondary" type="button">查看场次汇总</button><button id="report-new" class="button primary" type="button">记录下一场</button></div>
+    </section>
+    <section id="session-report" class="screen" hidden>
+      <div class="report-heading"><div><span class="eyebrow">SESSION SUMMARY</span><h1 id="session-report-title">训练场次汇总</h1><p id="session-report-subtitle" class="report-subtitle"></p></div><div id="session-status" class="result-stamp"></div></div>
+      <div class="session-totals panel"><div><span>比赛场数</span><b id="session-match-count">0</b></div><div><span>我方胜场</span><b id="session-win-count">0</b></div><div><span>我方得分</span><b id="session-point-wins">0</b></div><div><span>我方失分</span><b id="session-point-losses">0</b></div></div>
+      <article class="panel report-card session-card"><div class="section-heading"><div><span class="step-label">MATCHES</span><h2>逐场记录</h2></div></div><div id="session-matches"></div></article>
+      <article class="panel report-card session-card"><div class="section-heading"><div><span class="step-label">OPPONENTS</span><h2>按对手汇总</h2></div></div><div id="opponent-summary"></div></article>
+      <div class="report-actions session-actions"><button id="session-back" class="button secondary" type="button">返回训练记录</button><button id="session-finish" class="button secondary" type="button">结束本次训练</button><button id="session-json" class="button secondary" type="button">导出 JSON 原始记录</button><button id="session-markdown" class="button secondary" type="button">导出 Markdown 分析稿</button><button id="session-next" class="button primary" type="button">继续添加比赛</button></div>
+    </section>
+    <dialog id="next-match-dialog" class="next-match-dialog"><form id="next-match-form"><div class="section-heading"><div><span class="step-label">NEXT MATCH</span><h2>添加下一场比赛</h2></div><button id="cancel-next-match" class="text-button" type="button">关闭</button></div><label for="next-opponent">对手名称</label><input id="next-opponent" maxlength="24" placeholder="对手" autocomplete="off"><label for="next-format">计分方式</label><select id="next-format"><option value="official:21">正规比赛 · 21 分 · 三局两胜</option><option value="official:15">正规比赛 · 15 分 · 三局两胜</option><option value="free:5">自由比赛 · 5 分 · 单局</option><option value="free:7">自由比赛 · 7 分 · 单局</option><option value="free:11">自由比赛 · 11 分 · 单局</option><option value="free:15">自由比赛 · 15 分 · 单局</option><option value="free:21">自由比赛 · 21 分 · 单局</option></select><button class="button primary full" type="submit">开始记录</button></form></dialog>
+    <footer class="app-footer">羽球记分 <span>·</span> 离线可用，数据保存在当前浏览器</footer>
+  </main>
+  <script src="core.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script>
+</body>
+</html>
+
