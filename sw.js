@@ -1,4 +1,4 @@
-const CACHE_NAME = 'badminton-v01-shell-1';
+const CACHE_NAME = 'badminton-v01-shell-2-loss-causes';
 const APP_SHELL = ['./', './index.html', './styles.css', './core.js', './app.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {
@@ -19,4 +19,3 @@ self.addEventListener('fetch', event => {
     return response;
   }).catch(() => caches.match('./index.html'))));
 });
-

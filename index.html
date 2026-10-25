@@ -33,7 +33,7 @@
         <div id="result-choices" class="result-choices"><button class="result-button win-button" data-result="win" type="button"><span class="result-symbol">＋</span><span>我方得分</span><span class="result-hint">我方赢下这一分</span></button><button class="result-button lose-button" data-result="lose" type="button"><span class="result-symbol">－</span><span>我方失分</span><span class="result-hint">对方赢下这一分</span></button></div>
         <div id="choice-panel" hidden><p id="choice-label" class="choice-prompt"></p><div id="choices" class="choice-grid"></div><button id="back-step" class="button quiet back-button" type="button">← 返回上一步</button></div>
       </div>
-      <div id="area-panel" class="panel area-panel" hidden><div class="area-heading"><div><span class="step-label">OPTIONAL · LAST RALLY</span><h2>补记上一分资料</h2><p>可选：记录我方位置，或对手本分的关键技术。</p></div><button id="skip-area" class="button quiet" type="button">跳过</button></div><div class="court-grid" aria-label="选择我方所在区域"></div><p class="court-help">左右按我方面向球网的方向</p><details class="opponent-tech-details"><summary>记录对手本分的关键技术（可选）</summary><div id="opponent-tech-choices" class="choice-grid"></div></details></div>
+      <div id="area-panel" class="panel area-panel" hidden><div class="area-heading"><div><span class="step-label">OPTIONAL · LAST RALLY</span><h2>补记上一分资料</h2><p>可选：补记失分前置原因、我方位置或对手技术。</p></div><button id="skip-area" class="button quiet" type="button">跳过</button></div><div id="loss-cause-entry"></div><div class="court-grid" aria-label="选择我方所在区域"></div><p class="court-help">左右按我方面向球网的方向</p><details class="opponent-tech-details"><summary>记录对手本分的关键技术（可选）</summary><div id="opponent-tech-choices" class="choice-grid"></div></details></div>
       <div class="record-footer"><button id="undo-button" class="button secondary" type="button">↶ 撤销上一分</button><span id="rally-count" class="rally-count">已记录 0 分</span></div>
     </section>
     <section id="report" class="screen" hidden>
@@ -44,7 +44,8 @@
         <article class="panel report-card"><div class="section-heading"><div><span class="step-label">WINNING SHOTS</span><h2>得分技术</h2></div></div><p class="metric-caption">该技术得分次数 ÷ 总得分</p><div id="win-tech" class="metric-list"></div></article>
         <article class="panel report-card"><div class="section-heading"><div><span class="step-label">ERROR ANALYSIS</span><h2>失分技术</h2></div></div><p class="metric-caption">该技术失分次数 ÷ 总失分</p><div id="lose-tech" class="metric-list"></div></article>
         <article class="panel report-card"><div class="section-heading"><div><span class="step-label">OPPONENT STYLE · OBSERVED</span><h2>已记录的对手技术</h2></div></div><p class="metric-caption">仅统计记录员明确补记的对手动作</p><div id="opponent-tech" class="metric-list"></div></article>
-        <article class="panel report-card"><div class="section-heading"><div><span class="step-label">POINT REASONS</span><h2>失分原因</h2></div></div><p class="metric-caption">每项次数及占总失分比例</p><div id="lose-reason" class="metric-list"></div></article>
+        <article class="panel report-card"><div class="section-heading"><div><span class="step-label">POINT REASONS</span><h2>失分主要原因 / 终结结果</h2></div></div><p class="metric-caption">每项次数及占总失分比例</p><div id="lose-reason" class="metric-list"></div></article>
+        <article class="panel report-card"><div class="section-heading"><div><span class="step-label">RALLY BUILDUP</span><h2>失分前置原因</h2></div></div><p id="loss-cause-coverage" class="metric-caption"></p><div id="loss-cause-stats" class="metric-list"></div><div id="loss-chain-list"></div></article>
         <article class="panel report-card area-report"><div class="section-heading"><div><span class="step-label">COURT POSITION</span><h2>区域统计</h2></div></div><div id="area-report-content"></div></article>
       </div>
       <div class="report-actions"><button id="report-undo" class="button secondary" type="button">↶ 撤销上一分</button><button id="continue-match" class="button secondary" type="button" hidden>返回比赛</button><button id="report-session" class="button secondary" type="button">查看场次汇总</button><button id="report-new" class="button primary" type="button">记录下一场</button></div>
@@ -62,4 +63,3 @@
   <script src="core.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script>
 </body>
 </html>
-

@@ -31,7 +31,7 @@
   }
   function validateMatch(value) {
     if (!value || typeof value.matchId !== 'string' || typeof value.playerName !== 'string' || typeof value.opponentName !== 'string' || !Array.isArray(value.events)) throw new Error('比赛记录结构不完整');
-    for (const e of value.events) if (!e || typeof e.id !== 'string' || !['win','lose'].includes(e.result) || !core.techniques.includes(e.technique) || (e.opponentTechnique != null && !core.techniques.includes(e.opponentTechnique)) || !core.reasons[e.result]?.includes(e.reason) || (e.area !== null && !core.areas.includes(e.area))) throw new Error('比赛记录含无法识别的逐分数据');
+    for (const e of value.events) if (!e || typeof e.id !== 'string' || !['win','lose'].includes(e.result) || !core.techniques.includes(e.technique) || (e.opponentTechnique != null && !core.techniques.includes(e.opponentTechnique)) || !core.validLossCauses(e) || !core.reasons[e.result]?.includes(e.reason) || (e.area !== null && !core.areas.includes(e.area))) throw new Error('比赛记录含无法识别的逐分数据');
     const rules = core.normalizeRules(value.rules);
     return { ...value, rules, games: core.state(value.events, rules).games };
   }
@@ -87,6 +87,7 @@
     $('rally-count').textContent=`已记录 ${match.events.length} 分`; $('undo-button').disabled=!match.events.length; $('undo-button').style.opacity=match.events.length? '1':'.5';
     $('area-panel').hidden=!pendingAreaId; renderAreaGrid(document.querySelector('#area-panel .court-grid'),area=>fillArea(pendingAreaId,area));
     const last=match.events.find(event=>event.id===pendingAreaId);
+    renderLossCauseChoices($('loss-cause-entry'),last);
     renderOpponentTechChoices($('opponent-tech-choices'),last,technique=>saveOpponentTechnique(pendingAreaId,technique));
   }
   function renderAreaGrid(node, callback) { if(node)node.replaceChildren(...core.areas.map(area=>{const b=document.createElement('button');b.type='button';b.className='court-cell';b.textContent=area;b.addEventListener('click',()=>callback(area));return b;})); }
@@ -102,6 +103,30 @@
     match=candidate;announce(`已记录对手本分关键技术：${technique}`);
     if(inReport)renderReport();else renderScore();
   }
+  function renderLossCauseChoices(node, event, inReport=false) {
+    if (!node) return;
+    node.replaceChildren();
+    if (event?.result !== 'lose') return;
+    const heading=document.createElement('h3');heading.textContent='失分前置原因（可选、多选）';
+    const help=document.createElement('p');help.className='metric-caption';help.textContent='按实际发生先后点击；再次点击可取消。只补记观察到的原因。';
+    const choices=document.createElement('div');choices.className='choice-grid';
+    const selected=event.lossCauses||[];
+    for(const cause of core.lossCauses){
+      const b=document.createElement('button'),index=selected.indexOf(cause);
+      b.type='button';b.className='choice-button';b.classList.toggle('selected',index>=0);b.setAttribute('aria-pressed',String(index>=0));b.textContent=index>=0?`${index+1}. ${cause}`:cause;
+      b.addEventListener('click',()=>{
+        if(busy)return;
+        const current=match.events.find(e=>e.id===event.id),causes=current.lossCauses||[];
+        const nextCauses=causes.includes(cause)?causes.filter(value=>value!==cause):[...causes,cause];
+        const candidate=core.setLossCauses(match,event.id,nextCauses.length?nextCauses:null);
+        if(!saveMatch(candidate))return;
+        announce('已保存该回合的前置原因');
+        if(inReport)renderReport();else renderLossCauseChoices(node,match.events.find(e=>e.id===event.id));
+      });choices.append(b);
+    }
+    const chain=document.createElement('p');chain.className='metric-caption';chain.textContent=selected.length?`已观察链条：${core.lossChain(event)}`:'前置原因未记录，不据此推断不存在。';
+    node.append(heading,help,choices,chain);
+  }
   function metricRows(node, rows, denominator, type) {
     const max=Math.max(1,...rows.map(row=>row.count)); node.className=`metric-list ${type==='lose'?'lose-list':''}`;
     node.replaceChildren(...rows.map(row=>{const line=document.createElement('div');line.className='metric-row';const label=document.createElement('span');label.className='metric-name';label.textContent=row.label;const amount=document.createElement('span');amount.className='metric-value';amount.textContent=row.count;const track=document.createElement('span');track.className='metric-track';const bar=document.createElement('i');bar.style.width=`${row.count/max*100}%`;track.append(bar);const ratio=document.createElement('span');ratio.className='metric-ratio';ratio.textContent=denominator?`${(row.count/denominator*100).toFixed(1)}%`:'0.0%';line.append(label,amount,track,ratio);line.title=`${row.label}：${row.count} 次，占 ${ratio.textContent}`;return line;}));
@@ -113,16 +138,19 @@
     $('summary-text').textContent=report.summary||'本场尚无得分或失分记录。';$('total-wins').textContent=report.wins;$('total-losses').textContent=report.losses;
     $('game-table').innerHTML=`<table class="game-table"><thead><tr><th>局数</th><th>${esc(match.playerName)}</th><th>${esc(match.opponentName)}</th><th>结果</th></tr></thead><tbody>${st.games.length?st.games.map(g=>`<tr><td>第 ${g.gameNumber} 局</td><td>${g.scoreUs}</td><td>${g.scoreOpponent}</td><td>${g.winner==='win'?'我方胜':'对方胜'}</td></tr>`).join(''):'<tr><td colspan="4">尚无已完成的局</td></tr>'}</tbody></table>`;
     metricRows($('win-tech'),report.winTech,report.wins,'win');metricRows($('lose-tech'),report.loseTech,report.losses,'lose');metricRows($('lose-reason'),report.loseReasons,report.losses,'lose');
+    metricRows($('loss-cause-stats'),report.lossCauseCounts,report.losses,'lose');
+    $('loss-cause-coverage').textContent=`已补记 ${report.lossCausesRecorded} / ${report.losses} 个失分回合；每项占总失分比例，多选之和可能超过 100%。未记录不代表没有。`;
+    $('loss-chain-list').replaceChildren(...match.events.filter(e=>e.result==='lose'&&e.lossCauses?.length).map(e=>{const p=document.createElement('p');p.className='metric-caption';p.textContent=`第 ${e.gameNumber} 局第 ${e.rallyNumber} 分：${core.lossChain(e)}`;return p;}));
     const opponentTech=core.techniques.map(label=>({label,count:match.events.filter(event=>event.opponentTechnique===label).length}));
     metricRows($('opponent-tech'),opponentTech,opponentTech.reduce((sum,row)=>sum+row.count,0),'win');
     $('area-report-content').innerHTML=report.recorded?`<p class="area-copy">已记录区域 ${report.recorded} 分 / 全场 ${match.events.length} 分</p><div class="region-heading"><span>区域</span><span>得分</span><span>失分</span></div>${report.regions.map(r=>`<div class="region-line"><span>${r.label}</span><span>${r.win}</span><span>${r.lose}</span></div>`).join('')}`:'<p class="area-copy">本场未记录区域</p>';
     const last=match.events.at(-1), final=$('final-area');
-    final.hidden=!st.finished||!last||((!!last.area||!!last.areaSkipped)&&!!last.opponentTechnique);
-    if(!final.hidden){const showArea=!last.area&&!last.areaSkipped;final.innerHTML=`<h2>补记最后一分的资料</h2><p class="final-event-label">${last.result==='win'?'我方得分':'我方失分'} · ${esc(last.technique)}</p>${showArea?'<div class="court-grid"></div><button id="final-skip" class="button quiet" type="button">跳过区域</button>':''}<details id="final-opponent-details" class="opponent-tech-details" ${last.opponentTechnique?'':'open'}><summary>记录对手本分的关键技术（可选）${last.opponentTechnique?`：${esc(last.opponentTechnique)}`:''}</summary><div id="final-opponent-choices" class="choice-grid"></div></details>`;if(showArea){renderAreaGrid(final.querySelector('.court-grid'),area=>fillArea(last.id,area));$('final-skip').addEventListener('click',()=>{const next={...match,events:match.events.map(e=>e.id===last.id?{...e,areaSkipped:true}:e)};if(saveMatch(next)){match=next;renderReport();}});}renderOpponentTechChoices($('final-opponent-choices'),last,technique=>saveOpponentTechnique(last.id,technique,true));}
+    final.hidden=!st.finished||!last||((!!last.area||!!last.areaSkipped)&&!!last.opponentTechnique&&last.result!=='lose');
+    if(!final.hidden){const showArea=!last.area&&!last.areaSkipped;final.innerHTML=`<h2>补记最后一分的资料</h2><p class="final-event-label">${last.result==='win'?'我方得分':'我方失分'} · ${esc(last.technique)}</p>${showArea?'<div class="court-grid"></div><button id="final-skip" class="button quiet" type="button">跳过区域</button>':''}<div id="final-loss-causes"></div><details id="final-opponent-details" class="opponent-tech-details" ${last.opponentTechnique?'':'open'}><summary>记录对手本分的关键技术（可选）${last.opponentTechnique?`：${esc(last.opponentTechnique)}`:''}</summary><div id="final-opponent-choices" class="choice-grid"></div></details>`;if(showArea){renderAreaGrid(final.querySelector('.court-grid'),area=>fillArea(last.id,area));$('final-skip').addEventListener('click',()=>{const next={...match,events:match.events.map(e=>e.id===last.id?{...e,areaSkipped:true}:e)};if(saveMatch(next)){match=next;renderReport();}});}renderLossCauseChoices($('final-loss-causes'),last,true);renderOpponentTechChoices($('final-opponent-choices'),last,technique=>saveOpponentTechnique(last.id,technique,true));}
     $('continue-match').hidden=st.finished;$('report-new').disabled=!st.finished;
   }
   function render() { if(!match||!session)return; if(stateOf(match).finished){renderReport();showScreen('report');}else{renderScore();showScreen('record');} }
-  function fillArea(id,area){if(!id||busy)return;const next=core.setArea(match,id,area),event=next.events.find(item=>item.id===id);next.waitingAreaEventId=event.opponentTechnique?null:id;if(!saveMatch(next))return;match=next;pendingAreaId=next.waitingAreaEventId;renderScore();announce(`已为该分记录区域：${area}`);}
+  function fillArea(id,area){if(!id||busy)return;const next=core.setArea(match,id,area),event=next.events.find(item=>item.id===id);next.waitingAreaEventId=event.opponentTechnique?null:id;if(!saveMatch(next))return;match=next;pendingAreaId=next.waitingAreaEventId;if(stateOf(match).finished)renderReport();else renderScore();announce(`已为该分记录区域：${area}`);}
   function createSession(form) {
     const date=String(form.get('sessionDate')||today()),playerName=String(form.get('playerName')||'').trim()||'我方',title=String(form.get('sessionTitle')||'').trim()||`${date} 羽毛球练习`;
     const first=core.createMatch(playerName,form.get('opponentName'),selectedRules),now=new Date().toISOString();
@@ -160,8 +188,8 @@
   function exportMarkdown(){if(!session)return;const a=sessionStats(session),lines=[`# 羽毛球训练记录：${session.title||session.date}`,'',`- 日期：${session.date}`,`- 我方：${session.playerName}`,`- 状态：${session.status==='completed'?'已结束':'进行中'}`,`- 比赛场数：${session.matches.length}`,`- 我方胜场：${a.wins}`,`- 我方得分 / 失分：${a.pointWins} / ${a.pointLosses}`,'','## 逐场摘要','','| 场次 | 对手 | 计分规则 | 比分（我方:对方） | 结果 |','|---:|---|---|---|---|'];
     session.matches.forEach((m,i)=>{const st=stateOf(m),score=st.games.map(g=>`${g.scoreUs}:${g.scoreOpponent}`).join('，')||`${st.us}:${st.opponent}`,result=!st.finished?'进行中':st.won>st.lost?'我方胜':'对方胜';lines.push(`| ${i+1} | ${(m.opponentName||'对手').replace(/\|/g,'\\|')} | ${fmt(m.rules)} | ${score} | ${result} |`);});
     lines.push('','## 按对手汇总','','| 对手 | 场次 | 我方胜场 | 我方得分 | 我方失分 | 已记录对手技术 |','|---|---:|---:|---:|---:|---|');a.opponents.forEach(o=>lines.push(`| ${o.name} | ${o.matches} | ${o.wins} | ${o.pointWins} | ${o.pointLosses} | ${o.opponentTech} |`));
-    session.matches.forEach((m,i)=>{lines.push('',`## 第 ${i+1} 场：${m.opponentName||'对手'}`,'',`- 规则：${fmt(m.rules)}`,`- 记录时间：${m.createdAt}`,'','| 局数 | 局内分序号 | 我方得失分 | 我方最后技术 | 已记录的对手技术 | 主要原因 | 区域 | 时间 |','|---:|---:|---|---|---|---|---|---|');m.events.forEach(e=>lines.push(`| ${e.gameNumber} | ${e.rallyNumber} | ${e.result==='win'?'我方得分':'我方失分'} | ${e.technique} | ${e.opponentTechnique||'未记录'} | ${e.reason} | ${e.area||'未记录'} | ${e.timestamp} |`));});
-    lines.push('','## 请大模型分析','','请只根据以上记录分析我方稳定得分方式、主要失分点、对手技术特点和对不同对手的表现差异。对手技术一栏只包含记录员主动补记的数据；未记录的技术不要推断为不存在。区分事实与推测，数据不足时说明不足。');download(lines.join('\n'),'text/markdown','md');}
+    session.matches.forEach((m,i)=>{lines.push('',`## 第 ${i+1} 场：${m.opponentName||'对手'}`,'',`- 规则：${fmt(m.rules)}`,`- 记录时间：${m.createdAt}`,'','| 局数 | 局内分序号 | 我方得失分 | 我方最后技术 | 已记录的对手技术 | 主要原因 / 终结结果 | 观察到的前置因果链 | 区域 | 时间 |','|---:|---:|---|---|---|---|---|---|---|');m.events.forEach(e=>lines.push(`| ${e.gameNumber} | ${e.rallyNumber} | ${e.result==='win'?'我方得分':'我方失分'} | ${e.technique} | ${e.opponentTechnique||'未记录'} | ${e.reason} | ${e.result==='lose'?(e.lossCauses?.length?core.lossChain(e):'前置原因未记录'):'不适用'} | ${e.area||'未记录'} | ${e.timestamp} |`));});
+    lines.push('','## 请大模型分析','','请只根据以上记录分析我方稳定得分方式、主要失分点、对手技术特点和对不同对手的表现差异。对手技术一栏只包含记录员主动补记的数据；未记录的技术不要推断为不存在。前置原因按记录员观察顺序保存，与主要原因关联于同一失分回合；这是观察记录，不是已验证的因果结论。未补记的旧记录保持未知，不得凭最后一拍推断失位或回球过浅。请区分终结结果与前置问题，区分事实与推测，数据不足时说明不足。');download(lines.join('\n'),'text/markdown','md');}
 
   function onResult(result){if(busy||!match||stateOf(match).finished)return;if(pendingAreaId){const c={...match,waitingAreaEventId:null};if(!saveMatch(c))return;match=c;pendingAreaId=null;renderScore();}selection={result,technique:null};$('result-choices').hidden=true;$('choice-panel').hidden=false;$('entry-title').textContent='选择我方最后执行的技术';$('entry-step').textContent='02 / 03';$('choice-label').textContent=`我方${result==='win'?'得分':'失分'} · 技术动作`;showChoices(core.techniques,t=>{selection.technique=t;$('entry-title').textContent='选择这一分的主要原因';$('entry-step').textContent='03 / 03';$('choice-label').textContent=`我方${result==='win'?'得分':'失分'} · 主要原因`;showChoices(core.reasons[result],savePoint);});}
   function showChoices(labels,callback){const box=$('choices');box.replaceChildren(...labels.map(label=>{const b=document.createElement('button');b.className='choice-button';b.type='button';b.textContent=label;b.addEventListener('click',()=>callback(label));return b;}));}
@@ -182,4 +210,3 @@
   try{sessions=readSessions();renderHistory();const active=sessions.filter(s=>s.status==='active').sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''))[0];if(active)openSession(active.sessionId);else showScreen('home');}
   catch(e){announce(e.message,true);$('start-form').querySelector('button[type="submit"]').disabled=true;showScreen('home');}
 })();
-

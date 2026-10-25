@@ -2,6 +2,18 @@
   const techniques = ['杀球', '高远球', '吊球', '网前球', '平抽挡', '接杀', '发球 / 接发', '其他'];
   const reasons = { win: ['直接得分', '迫使对方失误', '对方主动失误', '相持得分', '其他'], lose: ['下网', '出界', '回球不到位', '被对方进攻击穿', '步法 / 回位不到位', '判断失误', '相持失误', '其他'] };
   const areas = ['左前', '中前', '右前', '左中', '中场', '右中', '左后', '中后', '右后'];
+  const lossCauses = ['被调动失位', '被动回球过浅'];
+  function validLossCauses(event) {
+    return event.lossCauses == null || (event.result === 'lose' && Array.isArray(event.lossCauses) && event.lossCauses.length > 0 && new Set(event.lossCauses).size === event.lossCauses.length && event.lossCauses.every(cause => lossCauses.includes(cause)));
+  }
+  function setLossCauses(match, eventId, causes) {
+    const event = match.events.find(item => item.id === eventId);
+    if (!event || event.result !== 'lose' || !validLossCauses({ result: 'lose', lossCauses: causes })) throw new Error('无效的失分前置原因或逐分编号');
+    return { ...match, events: match.events.map(item => item.id === eventId ? { ...item, lossCauses: causes == null ? null : [...causes] } : item) };
+  }
+  function lossChain(event) {
+    return event.result === 'lose' ? [...(event.lossCauses || []), event.reason].join(' → ') : '';
+  }
   const DEFAULT_RULES = { mode: 'official', targetScore: 21, gamesToWin: 2 };
   function normalizeRules(input) {
     const mode = input?.mode === 'free' ? 'free' : 'official';
@@ -40,7 +52,7 @@
     const current = state(match.events, rules);
     if (current.finished) throw new Error('比赛已结束');
     if (!techniques.includes(technique) || !reasons[result]?.includes(reason)) throw new Error('无效的技术或原因');
-    const event = { id: uid(), gameNumber: current.gameNumber, rallyNumber: current.rally + 1, result, technique, opponentTechnique: null, reason, area: null, scoreUs: current.us + Number(result === 'win'), scoreOpponent: current.opponent + Number(result === 'lose'), timestamp: new Date().toISOString() };
+    const event = { id: uid(), gameNumber: current.gameNumber, rallyNumber: current.rally + 1, result, technique, opponentTechnique: null, reason, lossCauses: null, area: null, scoreUs: current.us + Number(result === 'win'), scoreOpponent: current.opponent + Number(result === 'lose'), timestamp: new Date().toISOString() };
     const events = [...match.events, event];
     return { ...match, rules, events, games: state(events, rules).games };
   }
@@ -69,10 +81,11 @@
     const summary = [wins ? `本场得分记录主要集中在${top(winTech)}。` : '', losses ? `本场主要失分原因是${top(loseReasons)}。` : ''].filter(Boolean).join('');
     const court = regions.slice(0,3).filter(row => row.win || row.lose).sort((a,b) => b.lose-a.lose).slice(0,2);
     const areaSummary = recorded.length ? court.map(row => `${row.label}得分 ${row.win} 次、失分 ${row.lose} 次`).join('；') : '';
-    return { wins, losses, winTech, loseTech, loseReasons, regions, recorded: recorded.length, summary, areaSummary };
+    const lossCauseCounts = lossCauses.map(label => ({ label, count: match.events.filter(event => event.result === 'lose' && event.lossCauses?.includes(label)).length }));
+    const lossCausesRecorded = match.events.filter(event => event.result === 'lose' && event.lossCauses?.length).length;
+    return { wins, losses, winTech, loseTech, loseReasons, lossCauseCounts, lossCausesRecorded, regions, recorded: recorded.length, summary, areaSummary };
   }
-  const api = { techniques, reasons, areas, DEFAULT_RULES, normalizeRules, createMatch, state, add, undo, setArea, setOpponentTechnique, stats };
+  const api = { techniques, reasons, areas, lossCauses, validLossCauses, setLossCauses, lossChain, DEFAULT_RULES, normalizeRules, createMatch, state, add, undo, setArea, setOpponentTechnique, stats };
   if (typeof module !== 'undefined') module.exports = api;
   else root.Badminton = api;
 })(globalThis);
-
