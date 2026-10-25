@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#254d37"/>
+  <circle cx="256" cy="256" r="178" fill="#f4f7f2"/>
+  <path d="M210 123c-34 47-52 99-52 153 0 30 7 58 19 84l118-118c-26-65-54-104-85-119Zm107 137L200 377c18 24 42 42 70 52 50-27 86-74 103-129l-56-40Zm65 59 40 40" fill="#85b995" stroke="#254d37" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m352 282 38 38" stroke="#254d37" stroke-width="24" stroke-linecap="round"/>
+  <text x="256" y="454" text-anchor="middle" font-family="sans-serif" font-size="58" font-weight="700" fill="#254d37">羽球记分</text>
+</svg>
+
